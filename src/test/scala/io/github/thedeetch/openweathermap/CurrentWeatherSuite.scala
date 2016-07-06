@@ -3,14 +3,12 @@ package io.github.thedeetch.openweathermap
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.collection.JavaConversions._
-
 /**
   * Tests for [[io.github.thedeetch.openweathermap.CurrentWeather]].
   */
 class CurrentWeatherSuite extends FlatSpec with Matchers {
 
-  val config = ConfigFactory.parseMap(Map("uri" -> "localhost", "key" -> ""))
+  val config = ConfigFactory.load()
 
   "The current weather" should "be returned by city name" in {
     val weatherByCity = new CurrentWeather(config).byCityName("london")
