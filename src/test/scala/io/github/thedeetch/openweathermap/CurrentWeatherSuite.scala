@@ -1,32 +1,105 @@
 package io.github.thedeetch.openweathermap
 
-import com.typesafe.config.ConfigFactory
+import akka.actor.ActorSystem
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.Directives._
+import akka.stream.ActorMaterializer
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
-import scala.concurrent.duration._
-import scala.concurrent.Await
+
+import scala.concurrent.Future
 
 /**
   * Tests for [[io.github.thedeetch.openweathermap.CurrentWeather]].
   */
-class CurrentWeatherSuite extends FlatSpec with Matchers {
+class CurrentWeatherSuite extends FlatSpec with Matchers with ScalaFutures {
 
-  val config = ConfigFactory.load()
+  implicit val system = ActorSystem()
+  implicit val materializer = ActorMaterializer()
+  implicit val executionContext = system.dispatcher
+
+  implicit val defaultPatience =
+    PatienceConfig(timeout = Span(5, Seconds), interval = Span(500, Millis))
+
+  /**
+    * Builds a simple HTTP server and responds with the given string at the root.
+    *
+    * @param respondWith the string to respond with
+    * @return the URI where the server is bound
+    */
+  def buildServer(respondWith: String): Future[Uri] = {
+    val route =
+      pathSingleSlash {
+        get {
+          complete(HttpEntity(ContentTypes.`application/json`, respondWith))
+        }
+      }
+
+    Http().bindAndHandle(route, "localhost", 0)
+      .map(binding => s"http://localhost:${binding.localAddress.getPort}")
+  }
 
   "The current weather" should "be returned by city name" in {
-    val weatherByCity = new CurrentWeather(config).byCityName("london")
-    val result = Await.result(weatherByCity, 30 seconds)
-    result.main.temp should be(25.0)
+    val response =
+      """
+        |{
+        |  "main": {
+        |    "temp": 293.28
+        |  },
+        |  "sys": {
+        |    "country": "GB"
+        |  },
+        |  "id": 2643743,
+        |  "name": "London",
+        |  "cod": 200
+        |}
+      """.stripMargin
+    val result = buildServer(response)
+      .flatMap {
+        binding => new CurrentWeather(binding, "").byCityName("london")
+      }
+
+    result.futureValue should be(WeatherResponse(2643743, "London", Main(293.28), Sys("GB")))
   }
 
   it should "be returned when using the country code" in {
-    val weatherByCity = new CurrentWeather(config).byCityName("London,GB")
-    val result = Await.result(weatherByCity, 30 seconds)
-    result.main.temp should be(25.0)
+    val response =
+      """
+        |{
+        |  "main": {
+        |    "temp": 293.28
+        |  },
+        |  "sys": {
+        |    "country": "GB"
+        |  },
+        |  "id": 2643743,
+        |  "name": "London",
+        |  "cod": 200
+        |}
+      """.stripMargin
+    val result = buildServer(response)
+      .flatMap {
+        binding => new CurrentWeather(binding, "").byCityName("london,gb")
+      }
+
+    result.futureValue should be(WeatherResponse(2643743, "London", Main(293.28), Sys("GB")))
   }
 
   it should "be empty when the city name is empty" in {
-    val weatherByCity = new CurrentWeather(config).byCityName("")
-    val result = Await.result(weatherByCity, 30 seconds)
-    result.main.temp should be(0.0)
+    val response =
+      """
+        |{
+        |  "cod": "404",
+        |  "message": "Error: Not found city"
+        |}
+      """.stripMargin
+    val result = buildServer(response)
+      .flatMap {
+        binding => new CurrentWeather(binding, "").byCityName("")
+      }
+
+    result.failed.futureValue shouldBe an[Exception]
   }
 }
