@@ -24,7 +24,7 @@ class CurrentWeather(uri: Uri, appId: String) extends WeatherProtocols {
   implicit val materializer = ActorMaterializer()
 
   def this(config: Config) = {
-    this(config.getString("uri"), config.getString("appid"))
+    this(config.getString("OpenWeatherMap.uri"), config.getString("OpenWeatherMap.appid"))
   }
 
   /**
