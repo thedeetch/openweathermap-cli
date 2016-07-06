@@ -6,9 +6,11 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import scala.io.StdIn
 
 /**
   * Obtains the current weather.
@@ -74,11 +76,25 @@ class CurrentWeather(uri: Uri, appId: String) extends WeatherProtocols {
     * @return the WeatherResponse returned by the request
     */
   private def byUri(uri: Uri): Future[WeatherResponse] = {
-    val requestUri = uri.withQuery(("appid", appId) +: uri.query())
+    val requestUri = uri.withQuery(("units", "imperial") +:("appid", appId) +: uri.query())
     Http().singleRequest(HttpRequest(uri = requestUri))
       .flatMap {
         case HttpResponse(StatusCodes.OK, headers, entity, _) =>
           Unmarshal(entity).to[WeatherResponse]
       }
   }
+}
+
+object CurrentWeather extends App {
+  val config = ConfigFactory.load()
+  val currentWeather = new CurrentWeather(config)
+
+  print("Where are you? ")
+  val city = StdIn.readLine()
+  println()
+
+  val weatherResponse = Await.result(currentWeather.byCityName(city), 30 seconds)
+
+  println(s"${weatherResponse.name} weather:")
+  println(s"${weatherResponse.main.temp} degrees Fahrenheit")
 }
