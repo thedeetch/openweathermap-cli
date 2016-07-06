@@ -2,6 +2,8 @@ package io.github.thedeetch.openweathermap
 
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FlatSpec, Matchers}
+import scala.concurrent.duration._
+import scala.concurrent.Await
 
 /**
   * Tests for [[io.github.thedeetch.openweathermap.CurrentWeather]].
@@ -12,19 +14,19 @@ class CurrentWeatherSuite extends FlatSpec with Matchers {
 
   "The current weather" should "be returned by city name" in {
     val weatherByCity = new CurrentWeather(config).byCityName("london")
-
-    weatherByCity should be(25.0)
+    val result = Await.result(weatherByCity, 30 seconds)
+    result.main.temp should be(25.0)
   }
 
   it should "be returned when using the country code" in {
     val weatherByCity = new CurrentWeather(config).byCityName("London,GB")
-
-    weatherByCity should be(25.0)
+    val result = Await.result(weatherByCity, 30 seconds)
+    result.main.temp should be(25.0)
   }
 
   it should "be empty when the city name is empty" in {
     val weatherByCity = new CurrentWeather(config).byCityName("")
-
-    weatherByCity should be(None)
+    val result = Await.result(weatherByCity, 30 seconds)
+    result.main.temp should be(0.0)
   }
 }
