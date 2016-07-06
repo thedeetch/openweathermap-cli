@@ -35,7 +35,7 @@ class CurrentWeather(uri: Uri, appId: String) extends WeatherProtocols {
     */
   def byCityName(city: String): Future[WeatherResponse] = {
     val requestUri = uri.withQuery(Uri.Query("q" -> city, "appid" -> appId))
-    val response = Http().singleRequest(HttpRequest(uri = requestUri))
+    Http().singleRequest(HttpRequest(uri = requestUri))
       .flatMap {
         case HttpResponse(status, headers, entity, _) =>
           Unmarshal(entity).to[WeatherResponse]
