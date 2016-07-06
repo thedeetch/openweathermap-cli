@@ -18,13 +18,12 @@ import scala.io.StdIn
   * @param uri the base url for OpenWeatherMap
   * @see [[http://openweathermap.org/current#name]]
   */
-class CurrentWeather(uri: Uri, appId: String) extends WeatherProtocols {
+class CurrentWeather(uri: Uri, appId: String)(implicit system: ActorSystem) extends WeatherProtocols {
 
-  implicit val system = ActorSystem()
   implicit val executor = system.dispatcher
   implicit val materializer = ActorMaterializer()
 
-  def this(config: Config) = {
+  def this(config: Config)(implicit system: ActorSystem) = {
     this(config.getString("OpenWeatherMap.uri"), config.getString("OpenWeatherMap.appid"))
   }
 
@@ -87,14 +86,22 @@ class CurrentWeather(uri: Uri, appId: String) extends WeatherProtocols {
 
 object CurrentWeather extends App {
   val config = ConfigFactory.load()
+  implicit val system = ActorSystem()
+  implicit val executor = system.dispatcher
+  implicit val materializer = ActorMaterializer()
+  
   val currentWeather = new CurrentWeather(config)
 
   print("Where are you? ")
   val city = StdIn.readLine()
-  println()
 
   val weatherResponse = Await.result(currentWeather.byCityName(city), 30 seconds)
 
   println(s"${weatherResponse.name} weather:")
   println(s"${weatherResponse.main.temp} degrees Fahrenheit")
+
+  Http().shutdownAllConnectionPools()
+    .onComplete {
+      _ => system.terminate()
+    }
 }
