@@ -8,10 +8,9 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.io.StdIn
-import scala.util.{Failure, Success}
 
 /**
   * Obtains the current weather.
