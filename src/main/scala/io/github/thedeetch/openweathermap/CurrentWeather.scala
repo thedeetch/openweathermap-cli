@@ -8,8 +8,7 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.io.StdIn
 
 /**
@@ -20,7 +19,8 @@ import scala.io.StdIn
   */
 class CurrentWeather(uri: Uri, appId: String)(implicit system: ActorSystem) extends WeatherProtocols {
 
-  implicit val executor = system.dispatcher
+  import system.dispatcher
+
   implicit val materializer = ActorMaterializer()
 
   def this(config: Config)(implicit system: ActorSystem) = {
@@ -43,9 +43,9 @@ class CurrentWeather(uri: Uri, appId: String)(implicit system: ActorSystem) exte
     * @param id the city ID
     * @return a [[io.github.thedeetch.openweathermap.WeatherResponse]] object for that location
     */
-  def byCityId(id: Long): Future[WeatherResponse] = {
-    this.byUri(uri.withQuery(Uri.Query("id" -> id.toString)))
-  }
+  //  def byCityId(id: Long): Future[WeatherResponse] = {
+  //    this.byUri(uri.withQuery(Uri.Query("id" -> id.toString)))
+  //  }
 
   /**
     * Returns the current weather by geographic coordinates.
@@ -54,9 +54,9 @@ class CurrentWeather(uri: Uri, appId: String)(implicit system: ActorSystem) exte
     * @param longitude the longitude in degrees
     * @return a [[io.github.thedeetch.openweathermap.WeatherResponse]] object for that location
     */
-  def byCoordinates(latitude: Double, longitude: Double): Future[WeatherResponse] = {
-    this.byUri(uri.withQuery(Uri.Query("lat" -> latitude.toString, "lon" -> longitude.toString)))
-  }
+  //  def byCoordinates(latitude: Double, longitude: Double): Future[WeatherResponse] = {
+  //    this.byUri(uri.withQuery(Uri.Query("lat" -> latitude.toString, "lon" -> longitude.toString)))
+  //  }
 
   /**
     * Returns the current weather by US ZIP code.
@@ -64,9 +64,9 @@ class CurrentWeather(uri: Uri, appId: String)(implicit system: ActorSystem) exte
     * @param zip a US ZIP code
     * @return a [[io.github.thedeetch.openweathermap.WeatherResponse]] object for that location
     */
-  def byZipCode(zip: String): Future[WeatherResponse] = {
-    this.byUri(uri.withQuery(Uri.Query("zip" -> zip)))
-  }
+  //  def byZipCode(zip: String): Future[WeatherResponse] = {
+  //    this.byUri(uri.withQuery(Uri.Query("zip" -> zip)))
+  //  }
 
   /**
     * Returns the current weather with a given request URI. The OpenWeatherMap API ID will be appended to the given URI.
@@ -78,30 +78,35 @@ class CurrentWeather(uri: Uri, appId: String)(implicit system: ActorSystem) exte
     val requestUri = uri.withQuery(("units", "imperial") +:("appid", appId) +: uri.query())
     Http().singleRequest(HttpRequest(uri = requestUri))
       .flatMap {
-        case HttpResponse(StatusCodes.OK, headers, entity, _) =>
+        case HttpResponse(StatusCodes.OK, _, entity, _) =>
           Unmarshal(entity).to[WeatherResponse]
       }
   }
 }
 
 object CurrentWeather extends App {
-  val config = ConfigFactory.load()
   implicit val system = ActorSystem()
-  implicit val executor = system.dispatcher
-  implicit val materializer = ActorMaterializer()
-  
+
+  import system.dispatcher
+
+  val config = ConfigFactory.load()
   val currentWeather = new CurrentWeather(config)
+  val city = StdIn.readLine("Where are you? ")
 
-  print("Where are you? ")
-  val city = StdIn.readLine()
+  val weatherResponseFuture = currentWeather.byCityName(city)
 
-  val weatherResponse = Await.result(currentWeather.byCityName(city), 30 seconds)
+  weatherResponseFuture.onSuccess {
+    case WeatherResponse(_, Some(name), Some(Main(temp)), _) =>
+      println(s"$name weather:")
+      println(s"$temp degrees Fahrenheit")
+    case WeatherResponse(_, _, _, Some(message)) =>
+      println(message)
+  }
 
-  println(s"${weatherResponse.name} weather:")
-  println(s"${weatherResponse.main.temp} degrees Fahrenheit")
-
-  Http().shutdownAllConnectionPools()
-    .onComplete {
-      _ => system.terminate()
-    }
+  weatherResponseFuture.onComplete {
+    case _ => Http().shutdownAllConnectionPools()
+      .onSuccess {
+        case _ => system.terminate()
+      }
+  }
 }

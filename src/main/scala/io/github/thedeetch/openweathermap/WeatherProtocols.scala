@@ -7,6 +7,5 @@ import spray.json.DefaultJsonProtocol
   */
 trait WeatherProtocols extends DefaultJsonProtocol {
   implicit val mainFormat = jsonFormat1(Main.apply)
-  implicit val sysFormat = jsonFormat1(Sys.apply)
   implicit val weatherResponseFormat = jsonFormat4(WeatherResponse.apply)
 }

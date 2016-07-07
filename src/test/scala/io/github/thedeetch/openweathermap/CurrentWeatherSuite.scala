@@ -48,9 +48,6 @@ class CurrentWeatherSuite extends FlatSpec with Matchers with ScalaFutures {
         |  "main": {
         |    "temp": 293.28
         |  },
-        |  "sys": {
-        |    "country": "GB"
-        |  },
         |  "id": 2643743,
         |  "name": "London",
         |  "cod": 200
@@ -61,7 +58,7 @@ class CurrentWeatherSuite extends FlatSpec with Matchers with ScalaFutures {
         binding => new CurrentWeather(binding, "").byCityName("london")
       }
 
-    result.futureValue should be(WeatherResponse(2643743, "London", Main(293.28), Sys("GB")))
+    result.futureValue should be(WeatherResponse(Some(2643743), Some("London"), Some(Main(293.28)), None))
   }
 
   it should "be returned when using the country code" in {
@@ -70,9 +67,6 @@ class CurrentWeatherSuite extends FlatSpec with Matchers with ScalaFutures {
         |{
         |  "main": {
         |    "temp": 293.28
-        |  },
-        |  "sys": {
-        |    "country": "GB"
         |  },
         |  "id": 2643743,
         |  "name": "London",
@@ -84,10 +78,10 @@ class CurrentWeatherSuite extends FlatSpec with Matchers with ScalaFutures {
         binding => new CurrentWeather(binding, "").byCityName("london,gb")
       }
 
-    result.futureValue should be(WeatherResponse(2643743, "London", Main(293.28), Sys("GB")))
+    result.futureValue should be(WeatherResponse(Some(2643743), Some("London"), Some(Main(293.28)), None))
   }
 
-  it should "be empty when the city name is empty" in {
+  it should "return a not found message when the city name is empty" in {
     val response =
       """
         |{
@@ -100,6 +94,6 @@ class CurrentWeatherSuite extends FlatSpec with Matchers with ScalaFutures {
         binding => new CurrentWeather(binding, "").byCityName("")
       }
 
-    result.failed.futureValue shouldBe an[Exception]
+    result.futureValue should be(WeatherResponse(None, None, None, Some("Error: Not found city")))
   }
 }

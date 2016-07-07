@@ -5,18 +5,11 @@ package io.github.thedeetch.openweathermap
   * @param id the city ID
   * @param name the city name
   * @param main the main weather conditions
-  * @param sys additional information regarding the location
   */
-case class WeatherResponse(id: Long, name: String, main: Main, sys: Sys)
+case class WeatherResponse(id: Option[Long], name: Option[String], main: Option[Main], message: Option[String])
 
 /**
   * Main weather conditions.
   * @param temp the current temperature
   */
 case class Main(temp: Double)
-
-/**
-  * Information regarding the location.
-  * @param country the country where the location is located
-  */
-case class Sys(country: String)
