@@ -8,8 +8,10 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 import scala.io.StdIn
+import scala.util.{Failure, Success}
 
 /**
   * Obtains the current weather.
@@ -85,11 +87,11 @@ class CurrentWeather(uri: Uri, appId: String)(implicit system: ActorSystem) exte
 }
 
 object CurrentWeather extends App {
+  val config = ConfigFactory.load()
   implicit val system = ActorSystem()
 
   import system.dispatcher
 
-  val config = ConfigFactory.load()
   val currentWeather = new CurrentWeather(config)
   val city = StdIn.readLine("Where are you? ")
 
@@ -104,9 +106,10 @@ object CurrentWeather extends App {
   }
 
   weatherResponseFuture.onComplete {
-    case _ => Http().shutdownAllConnectionPools()
-      .onSuccess {
-        case _ => system.terminate()
-      }
+    case _ =>
+      Await.result(Http().shutdownAllConnectionPools(), 10 seconds)
+      system.terminate()
   }
+
+  Await.result(weatherResponseFuture, 30 seconds)
 }
